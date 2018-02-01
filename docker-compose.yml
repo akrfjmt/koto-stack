@@ -1,0 +1,62 @@
+version: '3.4'
+
+services:
+    koto:
+        command: supervisord -c /etc/supervisord.conf
+        deploy:
+            placement:
+                constraints:
+                    - node.role == manager
+        image: akrfjmtt/koto:latest
+        networks:
+            - net
+        ports:
+            - "8432:8432"  # kotod
+            - "10122:22"   # sshd
+        secrets:
+            - source: id_rsa
+              target: /root/.ssh/id_rsa
+              mode: 0700
+            - source: authorized_keys
+              target: /root/.ssh/authorized_keys
+              mode: 0600
+            - source: koto_conf
+              target: /root/.koto/koto.conf
+              mode: 0600
+        volumes:
+            - type: volume
+              source: koto-data
+              target: /root/.koto
+
+    cpuminer-yescrypt:
+        command: supervisord -c /etc/supervisord.conf
+        deploy:
+            replicas: 1
+        environment:
+            - "MINERD_OPTIONS=--algo=yescrypt --url=koto:8432 --user=user --pass=pass --coinbase-addr=k16B7tTWPooacjKgVQQC8yCpcQC3DP8jHmY"
+        image: akrfjmtt/cpuminer-yescrypt
+        networks:
+            - net
+        ports:
+            - "10222:22"   # sshd
+        secrets:
+            - source: id_rsa
+              target: /root/.ssh/id_rsa
+              mode: 0700
+            - source: authorized_keys
+              target: /root/.ssh/authorized_keys
+              mode: 0600
+
+networks:
+    net:
+        driver: overlay
+volumes:
+    koto-data:
+
+secrets:
+    id_rsa:
+        external: true
+    authorized_keys:
+        external: true
+    koto_conf:
+        file: ./koto.conf
